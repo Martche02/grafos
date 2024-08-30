@@ -1,78 +1,59 @@
 import heapq, math
 from collections import deque
-class Graph:
-    def __init__(self, vertices, edges, direct = False):
-        self.adj = [[] for _ in range(vertices)]
+class Graph:# Classe base para representar um grafo
+    def __init__(self, vertices, edges, direct=False):
+        self.adj = [[] for _ in range(vertices)]  # Lista de adjacências
         for edge in edges:
-            v1, v2 = edge[:2]
-            w = edge[2] if len(edge) == 3 else 1 # Define o peso como 1 se não for especificado
+            v1, v2 = edge[:2]# Peso padrão 1 se não especificado
+            w = edge[2] if len(edge) == 3 else 1  
             self.adj[v1].append((v2, w))
-            if not direct:
-                self.adj[v2].append((v1, w)) # Grafo não direcionado
-class dfs(Graph):
+            if not direct:# Aresta reversa para grafo não-direcionado
+                self.adj[v2].append((v1, w))  
+class dfs(Graph):# Classe para busca em profundidade (DFS)
     def path_rec(self, visited, e, f, size):
         visited[e] = True
-        if e == f:
-            return size
+        if e == f: return size  # Caminho encontrado
         for i, w in self.adj[e]:
             if not visited[i]:
                 r = self.path_rec(visited, i, f, size+w)
-                if r != None:
-                    return r
+                if r is not None: return r
     def path(self, e, f):
         visited = [False] * len(self.adj)
         return self.path_rec(visited, e, f, 0)
-class bfs(Graph):
+class bfs(Graph):# Classe para busca em largura (BFS)
     def path_rec(self, visited, e, f, caminho):
         visited[e] = True
         for i, w in self.adj[e]:
-            if i == f:
-                return caminho + [i]
-            if visited[i] == False:
-                self.pilha.append( (visited + [], 
-                                    i, 
-                                    caminho + [i]))
+            if i == f: return caminho + [i]  # Caminho encontrado
+            if not visited[i]:# Adiciona estado à pilha
+                self.pilha.append((visited + [], i, caminho + [i]))
     def path(self, e, f):
-        self.pilha = [([False] * len(self.adj), 
-                       e, 
-                       [e])]
+        self.pilha = [([False] * len(self.adj), e, [e])]
         while self.pilha:
             visited, i, caminho = self.pilha.pop()
             r = self.path_rec(visited, i, f, caminho)
-            if r != None:
-                return r
-class Dijkstra(Graph):
-
+            if r is not None: return r
+class Dijkstra(Graph): # Classe para o algoritmo de Dijkstra
     def path(self, e, f):
-        V = len(self.adj)  
+        V = len(self.adj)
         dist = [float('inf')] * V
         dist[e] = 0
         pai = [None] * V
-
-        pilha = [(0, e)] # ordenada
-
+        pilha = [(0, e)]  # Heap de prioridades
         while pilha:
             size, i = heapq.heappop(pilha)
-            # # Encontra o índice do menor elemento (menor distância acumulada)
-            # min_index = min(range(len(pilha)), key=lambda x: pilha[x][0])
-            # # Remove o menor elemento da lista manualmente
-            # size, i = pilha.pop(min_index)
-            if i == f:
-                j = i
+            if i == f:  # Caminho encontrado
                 path = []
-                while j is not None:
-                    path.append(j)
-                    j = pai[j]
+                while i is not None:
+                    path.append(i)
+                    i = pai[i]
                 return path[::-1], dist[f]
-            
-            for j, w, in self.adj[i]:
-                if size+w < dist[j]: # se vale a pena, aqui que é a função de condição
-                    dist[j] = size+w
-                    pai[j] = i
-                    heapq.heappush(pilha, (size+w, j)) # atualiza j
-
+            for j, w in self.adj[i]:
+                if size + w < dist[j]:
+                    dist[j], pai[j] = size + w, i
+                    heapq.heappush(pilha, (dist[j], j))
         return None, float('inf')
-class Tarjan(Graph):
+class Tarjan(Graph):# Classe para encontrar CFC (conexos forte)
     def __init__(self, vertices, edges, direct=True):
         super().__init__(vertices, edges, direct)
         self.index = 0
@@ -81,170 +62,114 @@ class Tarjan(Graph):
         self.indices = [-1] * vertices
         self.low_link = [-1] * vertices
         self.sccs = []
-
-    def strongconnect(self, v):
-        # Define o índice e o low-link do vértice
-        self.indices[v] = self.index
-        self.low_link[v] = self.index
+    def strongconnect(self, v): # Inicializa índice e low-link
+        self.indices[v] = self.low_link[v] = self.index 
         self.index += 1
         self.stack.append(v)
         self.on_stack[v] = True
-
-        # Considera todos os vizinhos
-        for (w, _) in self.adj[v]:
-            if self.indices[w] == -1:  # Se o vizinho w não foi visitado
+        for w, _ in self.adj[v]:
+            if self.indices[w] == -1:
                 self.strongconnect(w)
                 self.low_link[v] = min(self.low_link[v], self.low_link[w])
-            elif self.on_stack[w]:  # Se o vizinho w está na stack
+            elif self.on_stack[w]:
                 self.low_link[v] = min(self.low_link[v], self.indices[w])
-
-        # Se v é uma raiz de SCC
-        if self.low_link[v] == self.indices[v]:
+        if self.low_link[v] == self.indices[v]:  # Vértice de raiz de SCC
             scc = []
             while True:
                 w = self.stack.pop()
                 self.on_stack[w] = False
                 scc.append(w)
-                if w == v:
-                    break
+                if w == v: break
             self.sccs.append(scc)
-
     def find_sccs(self):
         for v in range(len(self.adj)):
             if self.indices[v] == -1:
                 self.strongconnect(v)
         return self.sccs
-
-    def scc_to_graph(self):
-        # Primeiro, identificamos todos os SCCs
+    def scc_to_graph(self): # Primeiro, identificamos todos os SCCs
         sccs = self.find_sccs()
-
-        # Mapeia cada vértice ao SCC correspondente
-        scc_map = {}
-        for idx, scc in enumerate(sccs):
-            for vertex in scc:
-                scc_map[vertex] = idx
-
-        # Lista para armazenar as arestas do novo grafo
-        new_edges = []
-
-        # Constrói as arestas do novo grafo baseado no SCC
-        for v in range(len(self.adj)):
-            for (w, weight) in self.adj[v]:
-                if scc_map[v] != scc_map[w]:  # Se v e w pertencem a SCCs diferentes
-                    new_edges.append((scc_map[v], scc_map[w], weight))
-
-        # O novo grafo terá um número de vértices igual ao número de SCCs
-        new_graph = Graph(len(sccs), new_edges, direct=True)
-
-        return new_graph
-class Dinic():
+        scc_map = {v: idx for idx, scc in enumerate(sccs) for v in scc}
+        new_edges = [(scc_map[v], scc_map[w], weight) 
+            for v in range(len(self.adj)) for w, weight in self.adj[v]
+            if scc_map[v] != scc_map[w]]
+        return Graph(len(sccs), new_edges, direct=True)
+class Dinic():# Classe para o algoritmo de fluxo máximo de Dinic
     def __init__(self, vertices, edges):
         self.vertices = vertices
         self.adj = [[] for _ in range(vertices)]
-        self.direct = True
-        for edge in edges:
-            v1, v2 = edge[:2]
-            w = edge[2] if len(edge) == 3 else 1  # Define o peso como 1 se não for especificado
-
-            # Adiciona a aresta v1 -> v2
-            self.adj[v1].append([v2, w, len(self.adj[v2])])  
-            
-            # Adiciona a aresta reversa v2 -> v1 com capacidade 0
+        for v1, v2, *w in edges:
+            w = w[0] if w else 1
+            self.adj[v1].append([v2, w, len(self.adj[v2])])
             self.adj[v2].append([v1, 0, len(self.adj[v1]) - 1])
         self.level = [-1] * vertices
-
     def bfs_level_graph(self, source, sink):
         """Realiza BFS para construir o grafo de nível."""
         self.level = [-1] * len(self.adj)
         self.level[source] = 0
         queue = deque([source])
-
         while queue:
             u = queue.popleft()
-            for v, capacity, rev_index in self.adj[u]:
-                if self.level[v] < 0 and capacity > 0:  # Se não foi visitado e tem capacidade residual
+            for v, capacity, _ in self.adj[u]:
+                if self.level[v] < 0 and capacity > 0:
                     self.level[v] = self.level[u] + 1
                     queue.append(v)
-
-        return self.level[sink] != -1  # Retorna True se o sink for alcançável
-
+        return self.level[sink] != -1
     def dfs_blocking_flow(self, u, flow, sink, start):
-        """Realiza DFS para encontrar fluxos bloqueantes no grafo de nível."""
-        if u == sink:
-            return flow
-        
-        total_flow = 0
+        if u == sink: return flow
         while start[u] < len(self.adj[u]):
             v, capacity, rev_index = self.adj[u][start[u]]
-            if self.level[v] == self.level[u] + 1 and capacity > 0:  # Apenas considere arestas no grafo de nível
-                pushed = self.dfs_blocking_flow(v, min(flow, capacity), sink, start)
+            if self.level[v] == self.level[u] + 1 and capacity > 0:
+                pushed = self.dfs_blocking_flow(v, min(flow, capacity),
+                                                 sink, start)
                 if pushed > 0:
-                    # Diminui a capacidade residual da aresta
                     self.adj[u][start[u]][1] -= pushed
-                    # Aumenta a capacidade residual da aresta reversa
                     self.adj[v][rev_index][1] += pushed
                     return pushed
             start[u] += 1
-
         return 0
-
     def max_flow(self, source, sink):
-        """Calcula o fluxo máximo do grafo."""
         max_flow = 0
         while self.bfs_level_graph(source, sink):
             start = [0] * self.vertices
-            flow = self.dfs_blocking_flow(source, float('inf'), sink, start)
-            while flow:
+            while (flow := self.dfs_blocking_flow(source, float('inf'),
+                                                   sink, start)):
                 max_flow += flow
-                flow = self.dfs_blocking_flow(source, float('inf'), sink, start)
         return max_flow
-
-
-class Dijkstrapar(Graph):
+class Dijkstrapar(Graph):# Variante do Dijkstra para grafos modificados
     def path(self, e, f):
         V = len(self.adj)
         self.nadj = [[] for _ in range(V)]
-
-        # Construir o grafo G2
-        for u in range(V):
+        for u in range(V):  # Construir o grafo G2
             for v1, w1 in self.adj[u]:
                 for v2, w2 in self.adj[v1]:
-                    if u != v2:  # Garante que não estamos formando um loop para o vértice original
+                    if u != v2:
                         self.nadj[u].append((v2, w1 + w2))
-
-        self.adj = self.nadj  # Atualiza a lista de adjacência para G2
-
+        self.adj = self.nadj
         dist = [float('inf')] * V
         dist[e] = 0
         pai = [None] * V
-
-        pilha = [(0, e)]  # Usando heapq para a fila de prioridades
-
+        pilha = [(0, e)]
         while pilha:
             size, i = heapq.heappop(pilha)
-            if i == f:
+            if i == f:  # Caminho encontrado
                 path = []
                 while i is not None:
                     path.append(i)
                     i = pai[i]
                 return path[::-1], dist[f]
-
             for j, w in self.adj[i]:
-                if size + w < dist[j]:  # se vale a pena
-                    dist[j] = size + w
-                    pai[j] = i
-                    heapq.heappush(pilha, (dist[j], j))  # atualiza j
-
+                if size + w < dist[j]:
+                    dist[j], pai[j] = size + w, i
+                    heapq.heappush(pilha, (dist[j], j))
         return None, float('inf')
-class dfsimposto(Graph):
+class dfsimposto(Graph):# DFS customizado com cálculo de custo de imposto
     def path_rec(self, visited, e, size):
         visited[e] = True
         custo = self.imposto[e]
         for i, w in self.adj[e]:
             if not visited[i]:
-                custo+=self.path_rec(visited, i, w)
-        return math.ceil(size*custo/4)
+                custo += self.path_rec(visited, i, w)
+        return math.ceil(size * custo / 4)
     def path(self, e, f):
         visited = [False] * len(self.adj)
         self.imposto = []
